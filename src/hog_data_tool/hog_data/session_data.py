@@ -35,6 +35,15 @@ class FullSessionData:
     @cached_property
     def latest_date(self) -> datetime:
         return self.df[SessionDataColumn.DATE_TIME].max()
+    
+    @cached_property
+    def session_age_days(self) -> pd.Series[int]:
+        return (self.latest_date - self.date).dt.days  # pyright: ignore[reportOperatorIssue]
+    
+    @cached_property
+    def normalised_session_age(self) -> pd.Series[float]:
+        max_age = self.session_age_days.max()
+        return self.session_age_days / max_age
 
     def _validate_df_obeys_schema(self) -> None:
         expected_columns = {col.value for col in SessionDataColumn}

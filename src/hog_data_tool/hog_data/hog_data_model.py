@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import pandas as pd
 from hog_data_tool.hog_data.enums import GripperEnum, SessionDataColumn, SideEnum
 from hog_data_tool.hog_data.reader import load_hog_data_from_csv
 from hog_data_tool.hog_data.session_data import FullSessionData
-from hog_data_tool.hog_data.visualisation import plot_power_curve
+from hog_data_tool.visualisations.visualisation import SessionPlotMethod, plot_power_curve
 
 type SessionDataFrame = pd.DataFrame
 
@@ -45,11 +46,11 @@ class StructuredHogData:
             "prime_right": self.prime_data.right_data,
         }
 
-    def plot_power_curves(self, output_dir: Path) -> None:
+    def create_plot_for_all_grippers(self, plot_method: SessionPlotMethod, output_path: Path) -> None:
         for name, gripper_data in self.named_data_pairs.items():
-            plot_power_curve(
+            plot_method(
                 gripper_data,
-                output_path=output_dir / f"{name}_power_curve.png",
+                output_path=output_path / f"{name}_plot.png",
             )
 
 
