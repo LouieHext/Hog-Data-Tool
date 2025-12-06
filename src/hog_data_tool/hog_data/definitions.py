@@ -36,6 +36,9 @@ class SessionDataColumn(StrEnum):
     success_anaerobic = auto()
     success_aerobic = auto()
 
+class WeightUnit(StrEnum):
+    LBS = auto()
+    KGS = auto()
 
 @dataclass
 class HogRegieme:

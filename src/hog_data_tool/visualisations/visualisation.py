@@ -20,13 +20,14 @@ type SharedSessionPlotMethod = Callable[[list[FullSessionData], Path | None], tu
 def plot_power_curve(
     data: FullSessionData,
     output_path: Path | None = None,
+    show_curve_fit: bool = True
 ) -> tuple[Figure, Axes]:
     alpha = (1 - data.normalised_session_age) * 0.9
 
     # scatter plot, opacacity relative date
     fig, ax = create_figure()
     title = f"Power Curve (Weight vs Max Hold Time) ({data.latest_date.date()})"
-    x_label = "Weight (lbs)"
+    x_label = f"Weight ({data.weight_unit})"
     y_label = "Max Hold Time (s)"
     style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
     set_hog_time_axis(ax)
@@ -35,16 +36,18 @@ def plot_power_curve(
         data.weight, data.max_hold, alpha=alpha, c="blue", s=80, edgecolors="black", linewidths=0.5
     )
 
-    curve_fit = fit_power_curve_with_hyerbolic_decay(data.weight, data.max_hold)
-    weights = data.weight.sort_values().to_numpy()
-    hold_fit = curve_fit.predict(weights)
+    if show_curve_fit:
+        curve_fit = fit_power_curve_with_hyerbolic_decay(data.weight, data.max_hold)
+        weights = data.weight.sort_values().to_numpy()
+        hold_fit = curve_fit.predict(weights)
 
-    ax.plot(
-        weights,
-        hold_fit,
-        color="red",
-        linewidth=2,
-    )
+        ax.plot(
+            weights,
+            hold_fit,
+            color="red",
+            linewidth=2,
+        )
+    
     save_figure(fig, output_path)
 
     return fig, ax
@@ -60,9 +63,9 @@ def plot_rolling_average_weight_in_regiemes(
         return
 
     fig, ax = create_figure()
-    title = f"Rolling Average Weight in Regiemes ({data.latest_date.date()})"
+    title = f"Rolling Average Weight in Regiemes"
     x_label = "Session date"
-    y_label = "Weight (lbs)"
+    y_label = f"Weight ({data.weight_unit})"
     style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
 
     for regieme, results in regieme_weights.items():
@@ -95,7 +98,7 @@ def plot_inverted_power_curve(
     # scatter plot, opacacity relative date
     fig, ax = create_figure()
     title = f"Inverted Power Curve (Weight vs Inverted Max Hold Time) ({data.latest_date.date()})"
-    y_label = "Weight (lbs)"
+    y_label = f"Weight ({data.weight_unit})"
     x_label = "Inverted Max Hold Time (s)"
     style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
 

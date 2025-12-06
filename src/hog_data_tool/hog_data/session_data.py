@@ -6,7 +6,8 @@ from functools import cached_property
 
 import pandas as pd
 
-from hog_data_tool.hog_data.definitions import SessionDataColumn
+from hog_data_tool.env_config import get_weight_unit
+from hog_data_tool.hog_data.definitions import SessionDataColumn, WeightUnit
 
 type SessionDataFrame = pd.DataFrame
 
@@ -15,16 +16,21 @@ type SessionDataFrame = pd.DataFrame
 class FullSessionData:
     df: SessionDataFrame
     label: str = ""
-
     def __post_init__(self):
         self._validate_df_obeys_schema()
+
         # sort df by date time
         self.df = self.df.sort_values(by=SessionDataColumn.DATE_TIME.value)
+
         # drop time zone if column has tz-aware datetimes
         if self.df[SessionDataColumn.DATE_TIME].dt.tz is not None:
             self.df[SessionDataColumn.DATE_TIME] = self.df[
                 SessionDataColumn.DATE_TIME
             ].dt.tz_convert(None)
+
+    @property
+    def weight_unit(self) -> WeightUnit:
+        return get_weight_unit()
 
     @property
     def number_of_sessions(self) -> int:

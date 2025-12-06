@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from hog_data_tool.hog_data.definitions import GripperEnum, SessionDataColumn, SideEnum
+from hog_data_tool.env_config import get_weight_unit
+from hog_data_tool.hog_data.definitions import GripperEnum, SessionDataColumn, SideEnum, WeightUnit
 from hog_data_tool.hog_data.reader import load_hog_data_from_csv
 from hog_data_tool.hog_data.session_data import FullSessionData
 from hog_data_tool.visualisations.visualisation import (
@@ -35,6 +36,9 @@ class StructuredHogData:
     def from_csv(cls, path: Path) -> StructuredHogData:
         rows = load_hog_data_from_csv(path)
         df = pd.DataFrame([row.model_dump() for row in rows])
+
+        if get_weight_unit() == WeightUnit.KGS:
+            df[SessionDataColumn.WEIGHT] /= 2.21
         return cls.from_hog_df(df)
 
     @property
