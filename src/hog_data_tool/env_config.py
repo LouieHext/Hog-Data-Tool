@@ -1,5 +1,7 @@
-from functools import cache
 import sys
+from functools import cache
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,10 +14,11 @@ def get_env_file() -> str | tuple[str, ...]:
 
 class EnvSettings(BaseSettings):
     """Base settings class for environment configuration."""
+
     model_config = SettingsConfigDict(
         title="Environment setting configuration",
         env_file=get_env_file(),
-        strict=False, 
+        strict=False,
         frozen=True,
         extra="ignore",
     )
@@ -23,8 +26,9 @@ class EnvSettings(BaseSettings):
 
 class EnvConfig(EnvSettings):
     """Configuration from the env for project runs."""
-    input_data_path: str 
-    output_data_path: str
+
+    input_data_path: Path
+    output_data_path: Path
 
 
 @cache
