@@ -7,7 +7,7 @@ from pathlib import Path
 import pydantic
 from pydantic import BaseModel, Field, field_validator
 
-from hog_data_tool.hog_data.enums import GripperEnum, SessionEnum, SideEnum
+from hog_data_tool.hog_data.definitions import GripperEnum, RegiemeEnum, SideEnum
 
 
 class HogDataRow(BaseModel):
@@ -19,7 +19,7 @@ class HogDataRow(BaseModel):
         extra="ignore",
     )
 
-    session_number: SessionEnum
+    session_number: RegiemeEnum
     date_time: datetime
     side: SideEnum
     gripper: GripperEnum

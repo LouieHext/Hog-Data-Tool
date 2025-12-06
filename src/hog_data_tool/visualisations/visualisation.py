@@ -1,6 +1,8 @@
 from collections.abc import Callable
 from pathlib import Path
 
+from hog_data_tool.analysis.curve_fit import fit_power_curve_with_hyerbolic_decay
+from hog_data_tool.analysis.progress import rolling_average_weight_in_regiemes
 from hog_data_tool.hog_data.session_data import FullSessionData
 from hog_data_tool.visualisations.utils import (
     create_figure,
@@ -33,6 +35,51 @@ def plot_power_curve(
         data.weight, data.max_hold, alpha=alpha, c="blue", s=80, edgecolors="black", linewidths=0.5
     )
 
+    curve_fit = fit_power_curve_with_hyerbolic_decay(data.weight, data.max_hold)
+    weights = data.weight.sort_values().to_numpy()
+    hold_fit = curve_fit.predict(weights)
+
+    ax.plot(
+        weights,
+        hold_fit,
+        color="red",
+        linewidth=2,
+    )
+    save_figure(fig, output_path)
+
+    return fig, ax
+
+
+def plot_rolling_average_weight_in_regiemes(
+    data: FullSessionData,
+    output_path: Path | None = None,
+) -> tuple[Figure, Axes]:
+
+    regieme_weights = rolling_average_weight_in_regiemes(data)
+    if not regieme_weights:
+        return
+
+    fig, ax = create_figure()
+    title = f"Rolling Average Weight in Regiemes ({data.latest_date.date()})"
+    x_label = "Session date"
+    y_label = "Weight (lbs)"
+    style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
+
+    for regieme, results in regieme_weights.items():
+        weights = [r[0] for r in results]
+        dates = [r[1] for r in results]
+        ax.plot(
+            dates,
+            weights,
+            marker="o",
+            linestyle="-",
+            markersize=6,
+            linewidth=2,
+            label=regieme.name,
+        )
+
+    # put legend outside plot
+    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
     save_figure(fig, output_path)
 
     return fig, ax

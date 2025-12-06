@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from hog_data_tool.hog_data.enums import GripperEnum, SessionDataColumn, SideEnum
+from hog_data_tool.hog_data.definitions import GripperEnum, SessionDataColumn, SideEnum
 from hog_data_tool.hog_data.reader import load_hog_data_from_csv
 from hog_data_tool.hog_data.session_data import FullSessionData
 from hog_data_tool.visualisations.visualisation import (
