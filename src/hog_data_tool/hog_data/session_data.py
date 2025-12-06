@@ -14,11 +14,16 @@ type SessionDataFrame = pd.DataFrame
 @dataclass()
 class FullSessionData:
     df: SessionDataFrame
+    label: str = ""
 
     def __post_init__(self):
         self._validate_df_obeys_schema()
         # sort df by date time
         self.df = self.df.sort_values(by=SessionDataColumn.DATE_TIME.value)
+        # drop time zone
+        self.df[SessionDataColumn.DATE_TIME] = self.df[SessionDataColumn.DATE_TIME].dt.tz_convert(
+            None
+        )
 
     @property
     def weight(self) -> pd.Series[int]:
@@ -39,6 +44,28 @@ class FullSessionData:
     @cached_property
     def session_age_days(self) -> pd.Series[int]:
         return (self.latest_date - self.date).dt.days  # pyright: ignore[reportOperatorIssue]
+
+    @cached_property
+    def sorted_session_dates(self) -> pd.Series[datetime]:
+        return self.date.sort_values().reset_index(drop=True)
+
+    @cached_property
+    def rolling_session_gap_days(self) -> pd.Series[float]:
+        days_since_last_session = self.sorted_session_dates.diff().dt.days.fillna(0)
+        rolling_avg = days_since_last_session.rolling(window=7).mean()
+        return rolling_avg
+
+    @cached_property
+    def session_week(self) -> pd.Series[datetime]:
+        self.df[SessionDataColumn.DATE_TIME].dt.to_period("W").apply(lambda r: r.start_time)
+
+    @cached_property
+    def rolling_sessions_per_week(self) -> pd.Series[int]:
+        df = self.df.copy()
+        df["week"] = df[SessionDataColumn.DATE_TIME].dt.to_period("W").apply(lambda r: r.start_time)
+        sessions_per_week = df.groupby("week").size()
+        rolling_avg = sessions_per_week.rolling(window=4).mean()
+        return rolling_avg
 
     @cached_property
     def normalised_session_age(self) -> pd.Series[float]:

@@ -10,6 +10,7 @@ from hog_data_tool.hog_data.reader import load_hog_data_from_csv
 from hog_data_tool.hog_data.session_data import FullSessionData
 from hog_data_tool.visualisations.visualisation import (
     SessionPlotMethod,
+    SharedSessionPlotMethod,
 )
 
 type SessionDataFrame = pd.DataFrame
@@ -37,6 +38,18 @@ class StructuredHogData:
         return cls.from_hog_df(df)
 
     @property
+    def all_gripper_data(self) -> list[FullSessionData]:
+        return list(self.named_data_pairs.values())
+
+    @property
+    def all_right_gripper_data(self) -> list[FullSessionData]:
+        return [
+            self.micro_data.right_data,
+            self.crusher_data.right_data,
+            self.prime_data.right_data,
+        ]
+
+    @property
     def named_data_pairs(self) -> dict[str, FullSessionData]:
         return {
             "micro_left": self.micro_data.left_data,
@@ -55,6 +68,22 @@ class StructuredHogData:
                 gripper_data,
                 output_path=output_path / f"{name}_plot.png",
             )
+
+    def create_shared_gripper_plot(
+        self,
+        plot_method: SharedSessionPlotMethod,
+        output_path: Path,
+        only_show_right: bool = True,
+    ) -> None:
+
+        all_data = self.all_gripper_data
+        if only_show_right:
+            all_data = self.all_right_gripper_data
+
+        plot_method(
+            all_data,
+            output_path=output_path,
+        )
 
 
 @dataclass()
@@ -75,6 +104,6 @@ class GripperData:
 
         return cls(
             gripper=gripper,
-            left_data=FullSessionData(df=left_df),
-            right_data=FullSessionData(df=right_df),
+            left_data=FullSessionData(df=left_df, label=f"{gripper.value} Left"),
+            right_data=FullSessionData(df=right_df, label=f"{gripper.value} Right"),
         )

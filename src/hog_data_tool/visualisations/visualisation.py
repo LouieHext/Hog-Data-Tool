@@ -1,7 +1,6 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from hog_data_tool.hog_data.enums import SessionDataColumn
 from hog_data_tool.hog_data.session_data import FullSessionData
 from hog_data_tool.visualisations.utils import (
     create_figure,
@@ -13,6 +12,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 type SessionPlotMethod = Callable[[FullSessionData, Path | None], tuple[Figure, Axes]]
+type SharedSessionPlotMethod = Callable[[list[FullSessionData], Path | None], tuple[Figure, Axes]]
 
 
 def plot_power_curve(
@@ -68,39 +68,44 @@ def plot_inverted_power_curve(
 
 
 def plot_session_gap(
-    data: FullSessionData,
+    data: FullSessionData | list[FullSessionData],
     output_path: Path | None = None,
 ) -> tuple[Figure, Axes]:
 
+    if not (isinstance(data, list)):
+        data = [data]
+
     # line plot of session frequency over time
+    dates = [data.latest_date.date() for data in data]
     fig, ax = create_figure()
-    title = f"Session Gap Over Time ({data.latest_date.date()})"
+    title = f"Session Gap Over Time ({max(dates)})"
     x_label = "Date"
     y_label = "Time since last session (days)"
     style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
 
-    session_dates = data.date.sort_values().reset_index(drop=True)
-    days_since_last_session = session_dates.diff().dt.days.fillna(0)
-    rolling_avg = days_since_last_session.rolling(window=7).mean()
+    upper_value = 0
+    for session_data in data:
+        rolling_gap_na_indexs = session_data.rolling_session_gap_days.dropna().index
+        rolling_gap_days = session_data.rolling_session_gap_days.dropna()
+        start_dates = session_data.sorted_session_dates.loc[rolling_gap_na_indexs]
 
-    ax.plot(
-        session_dates,
-        days_since_last_session,
-        marker="o",
-        linestyle="-",
-        color="green",
-        markersize=6,
-        linewidth=2,
-    )
-    ax.plot(
-        session_dates,
-        rolling_avg,
-        marker="o",
-        linestyle="-",
-        color="orange",
-        markersize=6,
-        linewidth=2,
-    )
+        if rolling_gap_days.empty:
+            continue
+
+        upper_value = max(upper_value, rolling_gap_days.max())
+
+        ax.plot(
+            start_dates,
+            rolling_gap_days,
+            marker="o",
+            linestyle="-",
+            markersize=6,
+            linewidth=2,
+            label=session_data.label,
+        )
+
+    ax.set_ylim(bottom=0, top=1.5 * upper_value)
+    ax.legend()
 
     save_figure(fig, output_path)
 
@@ -108,42 +113,39 @@ def plot_session_gap(
 
 
 def plot_session_frequency(
-    data: FullSessionData,
+    data: FullSessionData | list[FullSessionData],
     output_path: Path | None = None,
 ) -> tuple[Figure, Axes]:
 
+    if not (isinstance(data, list)):
+        data = [data]
+
+    dates = [data.latest_date.date() for data in data]
+
     fig, ax = create_figure()
-    title = f"Sessions Per Week ({data.latest_date.date()})"
+    title = f"Sessions Per Week ({max(dates)})"
     y_label = "Number of Sessions"
     x_label = "Date"
     style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
 
-    df = data.df.copy()
-    df["week"] = df[SessionDataColumn.DATE_TIME].dt.to_period("W").apply(lambda r: r.start_time)
-    sessions_per_week = df.groupby("week").size()
-    rolling_avg = sessions_per_week.rolling(window=4).mean()
+    upper_value = 0
+    for session_data in data:
+        rolling_sessions = session_data.rolling_sessions_per_week.dropna()
+        if rolling_sessions.empty:
+            continue
+        upper_value = max(upper_value, rolling_sessions.max())
+        ax.plot(
+            rolling_sessions.index,
+            rolling_sessions.values,
+            marker="o",
+            linestyle="-",
+            markersize=6,
+            linewidth=2,
+            label=session_data.label,
+        )
 
-    ax.plot(
-        sessions_per_week.index,
-        sessions_per_week.values,
-        marker="o",
-        linestyle="-",
-        color="purple",
-        markersize=6,
-        linewidth=2,
-        label="Sessions per Week",
-    )
-    ax.plot(
-        rolling_avg.index,
-        rolling_avg.values,
-        marker="o",
-        linestyle="-",
-        color="red",
-        markersize=6,
-        linewidth=2,
-        label="4-Week Rolling Average",
-    )
-
+    ax.set_ylim(bottom=0, top=1.5 * upper_value)
+    ax.legend()
     save_figure(fig, output_path)
 
     return fig, ax

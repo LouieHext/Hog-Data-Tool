@@ -19,11 +19,11 @@ def main(config: EnvConfig) -> None:
         output_path=config.output_data_path / "inverted_power_curvexs",
     )
 
-    data.create_plot_for_all_grippers(
+    data.create_shared_gripper_plot(
         plot_method=plot_session_gap, output_path=config.output_data_path / "session_gap"
     )
 
-    data.create_plot_for_all_grippers(
+    data.create_shared_gripper_plot(
         plot_method=plot_session_frequency,
         output_path=config.output_data_path / "session_frequency",
     )
