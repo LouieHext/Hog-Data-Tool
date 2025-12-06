@@ -1,6 +1,6 @@
+import os
+from pathlib import Path
 
-
-from calendar import c
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -25,11 +25,11 @@ def style_axis(
 ) -> None:
     """Apply consistent styling to an axis."""
     if title:
-        ax.set_title(title, fontsize=20, pad=10, weight = 'bold')
+        ax.set_title(title, fontsize=20, pad=10, weight="bold")
     if xlabel:
-        ax.set_xlabel(xlabel, fontsize=20, labelpad=8, weight = 'bold')
+        ax.set_xlabel(xlabel, fontsize=20, labelpad=8, weight="bold")
     if ylabel:
-        ax.set_ylabel(ylabel, fontsize=20, labelpad=8,weight = 'bold')
+        ax.set_ylabel(ylabel, fontsize=20, labelpad=8, weight="bold")
 
     for lbl in ax.get_xticklabels():
         lbl.set_rotation(rotation)
@@ -39,12 +39,12 @@ def style_axis(
     if grid:
         ax.grid(linestyle="--", alpha=0.7, color="black")
 
-    for axis in ['bottom', 'left']:
+    for axis in ["bottom", "left"]:
         ax.spines[axis].set_linewidth(2.5)
-        ax.spines[axis].set_color('0.2')
+        ax.spines[axis].set_color("0.2")
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
 
 def create_figure(
@@ -54,3 +54,15 @@ def create_figure(
     fig, ax = plt.subplots(figsize=figsize, constrained_layout=True)
     ax.set_facecolor(facecolor)
     return fig, ax
+
+
+def save_figure(
+    fig: Figure,
+    output_path: Path | None = None,
+) -> None:
+    """Save a figure to the specified path, ensuring the directory exists."""
+    if output_path is None:
+        return
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    fig.savefig(output_path)
+    plt.close(fig)

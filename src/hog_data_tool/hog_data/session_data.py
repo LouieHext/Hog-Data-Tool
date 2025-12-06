@@ -35,11 +35,11 @@ class FullSessionData:
     @cached_property
     def latest_date(self) -> datetime:
         return self.df[SessionDataColumn.DATE_TIME].max()
-    
+
     @cached_property
     def session_age_days(self) -> pd.Series[int]:
         return (self.latest_date - self.date).dt.days  # pyright: ignore[reportOperatorIssue]
-    
+
     @cached_property
     def normalised_session_age(self) -> pd.Series[float]:
         max_age = self.session_age_days.max()
