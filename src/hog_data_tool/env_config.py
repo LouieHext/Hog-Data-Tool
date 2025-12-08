@@ -39,6 +39,7 @@ def get_env_config() -> EnvConfig:
     """Get the environment configuration singleton."""
     return EnvConfig()  # pyright: ignore[reportCallIssue]
 
+
 @cache
 def get_weight_unit() -> WeightUnit:
     config = get_env_config()

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import StrEnum, auto
+
 from matplotlib.pylab import Enum
 
 
@@ -36,9 +37,11 @@ class SessionDataColumn(StrEnum):
     success_anaerobic = auto()
     success_aerobic = auto()
 
+
 class WeightUnit(StrEnum):
     LBS = auto()
     KGS = auto()
+
 
 @dataclass
 class HogRegieme:

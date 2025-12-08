@@ -1,10 +1,8 @@
-from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
-from hog_data_tool.hog_data.session_data import FullSessionData
 
 
 def hyerbolic_decay(w: np.ndarray, a: float, b: float, c: float) -> np.ndarray:
@@ -24,6 +22,9 @@ class HyperbolicCurveFit:
     def predict(self, w: np.ndarray | float) -> np.ndarray:
         w = np.asarray(w, dtype=float)
         return hyerbolic_decay(w, self.a, self.b, self.c)
+
+    def inverted_predict(self, hold_time: np.ndarray) -> np.ndarray:
+        return (self.a / (hold_time - self.c)) - self.b
 
     def weight_for_hold(self, hold_time: float) -> float:
         """

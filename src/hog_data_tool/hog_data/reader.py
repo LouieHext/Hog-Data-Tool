@@ -35,10 +35,10 @@ class HogDataRow(BaseModel):
     success_aerobic: float = Field(ge=0)
 
     @field_validator("session_number", mode="before")
-    def coerce_session_number(cls, v):
+    def coerce_session_number(cls, v) -> int:
         if isinstance(v, str) and v.isdigit():
             return int(v)
-        return v
+        raise ValueError(f"session number {v} is not an interger")
 
 
 def load_hog_data_from_csv(path: Path) -> list[HogDataRow]:

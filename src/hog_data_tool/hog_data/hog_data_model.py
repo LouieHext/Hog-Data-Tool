@@ -6,7 +6,12 @@ from pathlib import Path
 import pandas as pd
 
 from hog_data_tool.env_config import get_weight_unit
-from hog_data_tool.hog_data.definitions import GripperEnum, SessionDataColumn, SideEnum, WeightUnit
+from hog_data_tool.hog_data.definitions import (
+    GripperEnum,
+    SessionDataColumn,
+    SideEnum,
+    WeightUnit,
+)
 from hog_data_tool.hog_data.reader import load_hog_data_from_csv
 from hog_data_tool.hog_data.session_data import FullSessionData
 from hog_data_tool.visualisations.visualisation import (
@@ -42,16 +47,20 @@ class StructuredHogData:
         return cls.from_hog_df(df)
 
     @property
-    def all_gripper_data(self) -> list[FullSessionData]:
+    def all_data(self) -> list[FullSessionData]:
         return list(self.named_data_pairs.values())
 
     @property
-    def all_right_gripper_data(self) -> list[FullSessionData]:
-        return [
-            self.micro_data.right_data,
-            self.crusher_data.right_data,
-            self.prime_data.right_data,
-        ]
+    def all_gripper_data(self) -> list[GripperData]:
+        return [self.crusher_data, self.micro_data, self.prime_data]
+
+    @property
+    def right_gripper_data(self) -> list[FullSessionData]:
+        return [data.right_data for data in self.all_gripper_data]
+
+    @property
+    def left_gripper_data(self) -> list[FullSessionData]:
+        return [data.left_data for data in self.all_gripper_data]
 
     @property
     def named_data_pairs(self) -> dict[str, FullSessionData]:
@@ -70,7 +79,7 @@ class StructuredHogData:
         for name, gripper_data in self.named_data_pairs.items():
             plot_method(
                 gripper_data,
-                output_path=output_path / f"{name}_plot.png",
+                output_path / f"{name}_plot.png",
             )
 
     def create_shared_gripper_plot(
@@ -80,13 +89,13 @@ class StructuredHogData:
         only_show_right: bool = True,
     ) -> None:
 
-        all_data = self.all_gripper_data
+        all_data = self.all_data
         if only_show_right:
-            all_data = self.all_right_gripper_data
+            all_data = self.right_gripper_data
 
         plot_method(
             all_data,
-            output_path=output_path,
+            output_path,
         )
 
 

@@ -1,5 +1,4 @@
 from hog_data_tool.env_config import EnvConfig, get_env_config
-from hog_data_tool.hog_data.definitions import WeightUnit
 from hog_data_tool.hog_data.hog_data_model import StructuredHogData
 from hog_data_tool.visualisations.visualisation import (
     plot_inverted_power_curve,

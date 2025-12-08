@@ -1,9 +1,9 @@
 from collections import defaultdict
-from email.policy import default
+
 import numpy as np
-import pandas as pd
+
 from hog_data_tool.analysis.curve_fit import fit_power_curve_with_hyerbolic_decay
-from hog_data_tool.hog_data.definitions import HOG_REGIEME_MAPPINGS
+from hog_data_tool.hog_data.definitions import HOG_REGIEME_MAPPINGS, RegiemeEnum
 from hog_data_tool.hog_data.session_data import FullSessionData
 
 
@@ -11,7 +11,7 @@ def rolling_average_weight_in_regiemes(
     data: FullSessionData,
     initial_session_count: int = 10,
     max_sessinons_per_window: int = 20,
-) -> pd.Series:
+) -> defaultdict[RegiemeEnum, list[tuple[int, int]]]:
 
     session_number = initial_session_count
     results = defaultdict(list)

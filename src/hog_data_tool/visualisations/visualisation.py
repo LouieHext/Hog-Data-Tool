@@ -14,13 +14,13 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 type SessionPlotMethod = Callable[[FullSessionData, Path | None], tuple[Figure, Axes]]
-type SharedSessionPlotMethod = Callable[[list[FullSessionData], Path | None], tuple[Figure, Axes]]
+type SharedSessionPlotMethod = Callable[
+    [list[FullSessionData] | FullSessionData, Path | None], tuple[Figure, Axes]
+]
 
 
 def plot_power_curve(
-    data: FullSessionData,
-    output_path: Path | None = None,
-    show_curve_fit: bool = True
+    data: FullSessionData, output_path: Path | None = None, show_curve_fit: bool = True
 ) -> tuple[Figure, Axes]:
     alpha = (1 - data.normalised_session_age) * 0.9
 
@@ -33,7 +33,13 @@ def plot_power_curve(
     set_hog_time_axis(ax)
 
     ax.scatter(
-        data.weight, data.max_hold, alpha=alpha, c="blue", s=80, edgecolors="black", linewidths=0.5
+        data.weight,
+        data.max_hold,
+        alpha=alpha,  # pyright: ignore[reportArgumentType]
+        c="blue",
+        s=80,
+        edgecolors="black",
+        linewidths=0.5,  # pyright: ignore[reportArgumentType]
     )
 
     if show_curve_fit:
@@ -47,7 +53,7 @@ def plot_power_curve(
             color="red",
             linewidth=2,
         )
-    
+
     save_figure(fig, output_path)
 
     return fig, ax
@@ -58,12 +64,14 @@ def plot_rolling_average_weight_in_regiemes(
     output_path: Path | None = None,
 ) -> tuple[Figure, Axes]:
 
-    regieme_weights = rolling_average_weight_in_regiemes(data)
-    if not regieme_weights:
-        return
-
     fig, ax = create_figure()
-    title = f"Rolling Average Weight in Regiemes"
+
+    regieme_weights = rolling_average_weight_in_regiemes(data)
+
+    if not regieme_weights:
+        return fig, ax
+
+    title = "Rolling Average Weight in Regiemes"
     x_label = "Session date"
     y_label = f"Weight ({data.weight_unit})"
     style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
@@ -89,8 +97,7 @@ def plot_rolling_average_weight_in_regiemes(
 
 
 def plot_inverted_power_curve(
-    data: FullSessionData,
-    output_path: Path | None = None,
+    data: FullSessionData, output_path: Path | None = None, show_curve_fit: bool = True
 ) -> tuple[Figure, Axes]:
 
     alpha = (1 - data.normalised_session_age) * 0.9
@@ -106,11 +113,23 @@ def plot_inverted_power_curve(
         data.max_hold,
         data.weight,
         c="royalblue",
-        alpha=alpha,
-        s=80,  # marker size
+        alpha=alpha,  # pyright: ignore[reportArgumentType]
+        s=80,
         edgecolors="black",
         linewidths=0.5,
     )
+
+    if show_curve_fit:
+        curve_fit = fit_power_curve_with_hyerbolic_decay(data.weight, data.max_hold)
+        hold_times = data.max_hold.sort_values().to_numpy()
+        weights = curve_fit.inverted_predict(hold_times)
+
+        ax.plot(
+            hold_times,
+            weights,
+            color="red",
+            linewidth=2,
+        )
 
     save_figure(fig, output_path)
 
@@ -183,6 +202,7 @@ def plot_session_frequency(
         rolling_sessions = session_data.rolling_sessions_per_week.dropna()
         if rolling_sessions.empty:
             continue
+
         upper_value = max(upper_value, rolling_sessions.max())
         ax.plot(
             rolling_sessions.index,
