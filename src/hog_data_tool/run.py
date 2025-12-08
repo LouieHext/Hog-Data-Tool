@@ -9,7 +9,8 @@ from hog_data_tool.visualisations.visualisation import (
 )
 
 
-def main(config: EnvConfig) -> None:
+def main() -> None:
+    config = get_env_config()
     data = StructuredHogData.from_csv(config.input_data_path)
 
     data.create_plot_for_all_grippers(
@@ -38,5 +39,4 @@ def main(config: EnvConfig) -> None:
 
 
 if __name__ == "__main__":
-    config = get_env_config()
-    main(config)
+    main()
