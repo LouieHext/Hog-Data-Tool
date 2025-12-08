@@ -5,7 +5,7 @@ A Python project for loading and visualizing HOG grip training session data.
 current capabilities
 - load hog data into a structured format for easy access and analysis `StructuredHogData`.
 - Easy access grouped Session data (i.e micro right hand) with some additional computed features, `FullSessionData`
-- Filtering of sessions (i.e include sessions 10 to current) allowing for some simple visualisatinos pre hatching.
+- Filtering of sessions (i.e include sessions 10 to current) allowing for some simple visualisations pre hatching.
 - bulk plotting methods across all gripper types and hands.
 - basic curve fitting (hyperbolic)
 - simple set of visualisations
@@ -19,14 +19,16 @@ current capabilities
 ## Setup
 
 1. **Environment**  
+
    Copy `env.shared` to `.env` and update paths and settings:  
 
    ```text
-   INPUT_DATA_PATH=./data/hog_data.csv
-   OUTPUT_DATA_PATH=./data/outputs/
-   WEIGHT_UNIT=lbs
+   INPUT_DATA_PATH=./data/hog_data.csv # path to hog data
+   OUTPUT_DATA_PATH=./data/outputs/ # path output plotd saved to
+   WEIGHT_UNIT=lbs #lbs or kgs
 
 2. **Install dependencies**
+
     simply call `poetry install` and poetry will install the dependencies to your venv.
 
 ---

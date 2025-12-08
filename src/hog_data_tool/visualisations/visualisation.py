@@ -272,7 +272,7 @@ def plot_session_frequency(
         rolling_sessions = session_data.rolling_sessions_per_week.dropna()
         if rolling_sessions.empty:
             continue
-        
+
         upper_value = max(upper_value, rolling_sessions.max())
         ax.plot(
             rolling_sessions.index.to_numpy(),
