@@ -20,7 +20,7 @@ current capabilities
 
 1. **Environment**  
 
-   Copy `env.shared` to `.env` and update paths and settings:  
+   Copy `env.shared` to `.env.local` and update paths and settings:  
 
    ```text
    INPUT_DATA_PATH=./data/hog_data.csv # path to hog data
