@@ -4,7 +4,7 @@ from enum import StrEnum, auto
 from matplotlib.pylab import Enum
 
 
-class RegiemeEnum(Enum):
+class RegimeEnum(Enum):
     ONBOARDING = 0
     POWER = 5
     SRENGTH_POWER = 4
@@ -44,8 +44,8 @@ class WeightUnit(StrEnum):
 
 
 @dataclass
-class HogRegieme:
-    regieme: RegiemeEnum
+class HogRegime:
+    regime: RegimeEnum
     lower_bound_s: int
     upper_bound_s: int
 
@@ -55,9 +55,9 @@ class HogRegieme:
 
 
 HOG_REGIEME_MAPPINGS = {
-    RegiemeEnum.POWER: HogRegieme(RegiemeEnum.POWER, 30, 60),
-    RegiemeEnum.SRENGTH_POWER: HogRegieme(RegiemeEnum.SRENGTH_POWER, 61, 90),
-    RegiemeEnum.STRENGTH: HogRegieme(RegiemeEnum.STRENGTH, 91, 120),
-    RegiemeEnum.STRENGTH_ENDURANCE: HogRegieme(RegiemeEnum.STRENGTH_ENDURANCE, 121, 180),
-    RegiemeEnum.ENDURANCE: HogRegieme(RegiemeEnum.ENDURANCE, 181, 300),
+    RegimeEnum.POWER: HogRegime(RegimeEnum.POWER, 30, 60),
+    RegimeEnum.SRENGTH_POWER: HogRegime(RegimeEnum.SRENGTH_POWER, 61, 90),
+    RegimeEnum.STRENGTH: HogRegime(RegimeEnum.STRENGTH, 91, 120),
+    RegimeEnum.STRENGTH_ENDURANCE: HogRegime(RegimeEnum.STRENGTH_ENDURANCE, 121, 180),
+    RegimeEnum.ENDURANCE: HogRegime(RegimeEnum.ENDURANCE, 181, 300),
 }

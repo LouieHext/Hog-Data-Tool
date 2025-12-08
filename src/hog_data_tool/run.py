@@ -3,7 +3,7 @@ from hog_data_tool.hog_data.hog_data_model import StructuredHogData
 from hog_data_tool.visualisations.visualisation import (
     plot_inverted_power_curve,
     plot_power_curve,
-    plot_rolling_average_weight_in_regiemes,
+    plot_rolling_average_weight_in_regimes,
     plot_session_frequency,
     plot_session_gap,
 )
@@ -32,8 +32,8 @@ def main(config: EnvConfig) -> None:
     )
 
     data.create_plot_for_all_grippers(
-        plot_method=plot_rolling_average_weight_in_regiemes,
-        output_path=config.output_data_path / "rolling_average_weight_in_regiemes",
+        plot_method=plot_rolling_average_weight_in_regimes,
+        output_path=config.output_data_path / "rolling_average_weight_in_regimes",
     )
 
 

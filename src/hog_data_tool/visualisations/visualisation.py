@@ -1,8 +1,8 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from hog_data_tool.analysis.curve_fit import fit_power_curve_with_hyerbolic_decay
-from hog_data_tool.analysis.progress import rolling_average_weight_in_regiemes
+from hog_data_tool.analysis.curve_fit import fit_power_curve_with_hyperbolic_decay
+from hog_data_tool.analysis.progress import rolling_average_weight_in_regimes
 from hog_data_tool.hog_data.session_data import FullSessionData
 from hog_data_tool.visualisations.utils import (
     create_figure,
@@ -22,6 +22,18 @@ type SharedSessionPlotMethod = Callable[
 def plot_power_curve(
     data: FullSessionData, output_path: Path | None = None, show_curve_fit: bool = True
 ) -> tuple[Figure, Axes]:
+    """
+    Plot a scatter of weight vs max hold time for a session, optionally overlaying
+    a hyperbolic curve fit.
+
+    Args:
+        data: FullSessionData containing weights and max hold times.
+        output_path: Optional path to save the generated figure.
+        show_curve_fit: Whether to overlay the fitted hyperbolic curve.
+
+    Returns:
+        A tuple containing the matplotlib Figure and Axes objects.
+    """
     alpha = (1 - data.normalised_session_age) * 0.9
 
     # scatter plot, opacacity relative date
@@ -29,7 +41,7 @@ def plot_power_curve(
     title = f"Power Curve (Weight vs Max Hold Time) ({data.latest_date.date()})"
     x_label = f"Weight ({data.weight_unit})"
     y_label = "Max Hold Time (s)"
-    style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
+    style_axis(ax, title=title, x_label=x_label, y_label=y_label)
     set_hog_time_axis(ax)
 
     ax.scatter(
@@ -43,7 +55,7 @@ def plot_power_curve(
     )
 
     if show_curve_fit:
-        curve_fit = fit_power_curve_with_hyerbolic_decay(data.weight, data.max_hold)
+        curve_fit = fit_power_curve_with_hyperbolic_decay(data.weight, data.max_hold)
         weights = data.weight.sort_values().to_numpy()
         hold_fit = curve_fit.predict(weights)
 
@@ -59,24 +71,34 @@ def plot_power_curve(
     return fig, ax
 
 
-def plot_rolling_average_weight_in_regiemes(
+def plot_rolling_average_weight_in_regimes(
     data: FullSessionData,
     output_path: Path | None = None,
 ) -> tuple[Figure, Axes]:
+    """
+    Plot the rolling average predicted weight for each HOG regime over time.
+
+    Args:
+        data: FullSessionData containing session weights and hold times.
+        output_path: Optional path to save the generated figure.
+
+    Returns:
+        A tuple containing the matplotlib Figure and Axes objects.
+    """
 
     fig, ax = create_figure()
 
-    regieme_weights = rolling_average_weight_in_regiemes(data)
+    regime_weights = rolling_average_weight_in_regimes(data)
 
-    if not regieme_weights:
+    if not regime_weights:
         return fig, ax
 
-    title = "Rolling Average Weight in Regiemes"
+    title = "Rolling Average Weight in Regimes"
     x_label = "Session date"
     y_label = f"Weight ({data.weight_unit})"
-    style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
+    style_axis(ax, title=title, x_label=x_label, y_label=y_label)
 
-    for regieme, results in regieme_weights.items():
+    for regime, results in regime_weights.items():
         weights = [r[0] for r in results]
         dates = [r[1] for r in results]
         ax.plot(
@@ -86,7 +108,7 @@ def plot_rolling_average_weight_in_regiemes(
             linestyle="-",
             markersize=6,
             linewidth=2,
-            label=regieme.name,
+            label=regime.name,
         )
 
     # put legend outside plot
@@ -99,6 +121,18 @@ def plot_rolling_average_weight_in_regiemes(
 def plot_inverted_power_curve(
     data: FullSessionData, output_path: Path | None = None, show_curve_fit: bool = True
 ) -> tuple[Figure, Axes]:
+    """
+    Plot weight against max hold time in an inverted format, optionally overlaying
+    the inverted hyperbolic curve fit.
+
+    Args:
+        data: FullSessionData containing weights and max hold times.
+        output_path: Optional path to save the generated figure.
+        show_curve_fit: Whether to overlay the inverted fitted curve.
+
+    Returns:
+        A tuple containing the matplotlib Figure and Axes objects.
+    """
 
     alpha = (1 - data.normalised_session_age) * 0.9
 
@@ -107,7 +141,7 @@ def plot_inverted_power_curve(
     title = f"Inverted Power Curve (Weight vs Inverted Max Hold Time) ({data.latest_date.date()})"
     y_label = f"Weight ({data.weight_unit})"
     x_label = "Inverted Max Hold Time (s)"
-    style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
+    style_axis(ax, title=title, x_label=x_label, y_label=y_label)
 
     ax.scatter(
         data.max_hold,
@@ -120,7 +154,7 @@ def plot_inverted_power_curve(
     )
 
     if show_curve_fit:
-        curve_fit = fit_power_curve_with_hyerbolic_decay(data.weight, data.max_hold)
+        curve_fit = fit_power_curve_with_hyperbolic_decay(data.weight, data.max_hold)
         hold_times = data.max_hold.sort_values().to_numpy()
         weights = curve_fit.inverted_predict(hold_times)
 
@@ -140,6 +174,16 @@ def plot_session_gap(
     data: FullSessionData | list[FullSessionData],
     output_path: Path | None = None,
 ) -> tuple[Figure, Axes]:
+    """
+    Plot the time gap between consecutive sessions over time.
+
+    Args:
+        data: A single FullSessionData or a list of FullSessionData objects.
+        output_path: Optional path to save the generated figure.
+
+    Returns:
+        A tuple containing the matplotlib Figure and Axes objects.
+    """
 
     if not (isinstance(data, list)):
         data = [data]
@@ -150,7 +194,7 @@ def plot_session_gap(
     title = f"Session Gap Over Time ({max(dates)})"
     x_label = "Date"
     y_label = "Time since last session (days)"
-    style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
+    style_axis(ax, title=title, x_label=x_label, y_label=y_label)
 
     upper_value = 0
     for session_data in data:
@@ -185,6 +229,16 @@ def plot_session_frequency(
     data: FullSessionData | list[FullSessionData],
     output_path: Path | None = None,
 ) -> tuple[Figure, Axes]:
+    """
+    Plot the number of sessions per week (rolling average) over time.
+
+    Args:
+        data: A single FullSessionData or a list of FullSessionData objects.
+        output_path: Optional path to save the generated figure.
+
+    Returns:
+        A tuple containing the matplotlib Figure and Axes objects.
+    """
 
     if not (isinstance(data, list)):
         data = [data]
@@ -195,7 +249,7 @@ def plot_session_frequency(
     title = f"Sessions Per Week ({max(dates)})"
     y_label = "Number of Sessions"
     x_label = "Date"
-    style_axis(ax, title=title, xlabel=x_label, ylabel=y_label)
+    style_axis(ax, title=title, x_label=x_label, y_label=y_label)
 
     upper_value = 0
     for session_data in data:

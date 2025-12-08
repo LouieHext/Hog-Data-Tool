@@ -18,18 +18,18 @@ def style_axis(
     ax: Axes,
     *,
     title: str | None = None,
-    xlabel: str | None = None,
-    ylabel: str | None = None,
+    x_label: str | None = None,
+    y_label: str | None = None,
     rotation: int = 45,
     grid: bool = True,
 ) -> None:
     """Apply consistent styling to an axis."""
     if title:
         ax.set_title(title, fontsize=20, pad=10, weight="bold")
-    if xlabel:
-        ax.set_xlabel(xlabel, fontsize=20, labelpad=8, weight="bold")
-    if ylabel:
-        ax.set_ylabel(ylabel, fontsize=20, labelpad=8, weight="bold")
+    if x_label:
+        ax.set_xlabel(x_label, fontsize=20, labelpad=8, weight="bold")
+    if y_label:
+        ax.set_ylabel(y_label, fontsize=20, labelpad=8, weight="bold")
 
     for lbl in ax.get_xticklabels():
         lbl.set_rotation(rotation)
