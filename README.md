@@ -10,6 +10,7 @@ current capabilities
 - basic curve fitting (hyperbolic)
 - simple set of visualisations
     - power and inverted power curves
+    - next weight suggestions based on least dense regions of power curve
     - session frequency and session gaps
     - rolling average weight of each regieme (power, strength, endurance etc)
     
