@@ -2,7 +2,9 @@ from collections import defaultdict
 
 import numpy as np
 
-from hog_data_tool.analysis.curve_fit import fit_power_curve_with_hyperbolic_decay
+from hog_data_tool.analysis.curve_fit import (
+    fit_power_curve_with_hyperbolic_decay,
+)
 from hog_data_tool.hog_data.definitions import HOG_REGIEME_MAPPINGS, RegimeEnum
 from hog_data_tool.hog_data.session_data import FullSessionData
 
@@ -55,3 +57,17 @@ def rolling_average_weight_in_regimes(
             results[regime.regime].append((predicted_weight, date_of_session))
 
     return results
+
+
+def find_sparse_weight(
+    data: FullSessionData,
+) -> float:
+    """
+    Find the midpoint of the largest gap between weights.
+    """
+    sorted_weight = np.sort(data.weight)
+    gaps = np.diff(sorted_weight)
+    idx = np.argmax(gaps)
+    sparse_weight = (sorted_weight[idx] + sorted_weight[idx + 1]) / 2
+
+    return sparse_weight

@@ -2,7 +2,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 from hog_data_tool.analysis.curve_fit import fit_power_curve_with_hyperbolic_decay
-from hog_data_tool.analysis.progress import rolling_average_weight_in_regimes
+from hog_data_tool.analysis.progress import (
+    find_sparse_weight,
+    rolling_average_weight_in_regimes,
+)
 from hog_data_tool.hog_data.session_data import FullSessionData
 from hog_data_tool.visualisations.utils import (
     create_figure,
@@ -65,6 +68,20 @@ def plot_power_curve(
             color="red",
             linewidth=2,
         )
+
+        # find least dense region and suggest a weight
+        weight = find_sparse_weight(data=data)
+        hold_time = curve_fit.predict(weight)
+        # add this as single point and include in legend
+        ax.plot(
+            weight,
+            hold_time,
+            color="black",
+            marker="*",
+            markersize=10,
+            label=f"Suggest weight {round(weight, 2)} {data.weight_unit.name}",
+        )
+        ax.legend()
 
     save_figure(fig, output_path)
 

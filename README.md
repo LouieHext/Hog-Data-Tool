@@ -1,7 +1,18 @@
 # Hog Data Tool
 
-A Python project for analyzing and visualizing HOG grip training session data.  
-Includes session statistics, power curve fitting, and regime-based rolling averages.
+A Python project for loading and visualizing HOG grip training session data.  
+
+current capabilities
+- load hog data into a structured format for easy access and analysis `StructuredHogData`.
+- Easy access grouped Session data (i.e micro right hand) with some additional computed features, `FullSessionData`
+- Filtering of sessions (i.e include sessions 10 to current) allowing for some simple visualisatinos pre hatching.
+- bulk plotting methods across all gripper types and hands.
+- basic curve fitting (hyperbolic)
+- simple set of visualisations
+    - power and inverted power curves
+    - session frequency and session gaps
+    - rolling average weight of each regieme (power, strength, endurance etc)
+    
 
 ---
 
