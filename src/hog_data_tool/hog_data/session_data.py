@@ -88,11 +88,6 @@ class FullSessionData:
         """Return day differences between consecutive sessions."""
         return self.df["session_gap_days"]
 
-    @property
-    def sessions_per_week(self) -> pd.Series[float]:
-        """Return the number of sessions that occurred in each ISO week."""
-        return self.df["sessions_per_week"]
-
     @cached_property
     def normalised_session_age(self) -> pd.Series[float]:
         """
@@ -110,7 +105,8 @@ class FullSessionData:
     @cached_property
     def rolling_sessions_per_week(self) -> pd.Series[int]:
         """Return a 4-week rolling mean of weekly session counts."""
-        return self.sessions_per_week.rolling(window=4).mean()
+        sessions_per_week = self.df.groupby("week").size()
+        return sessions_per_week.rolling(window=4).mean()
 
     def select_sessions_from_range(
         self,
@@ -155,7 +151,6 @@ class FullSessionData:
 
         self.df["session_gap_days"] = self.date.diff().dt.days.fillna(0)
         self.df["week"] = self.date.dt.to_period("W").dt.start_time
-        self.df["sessions_per_week"] = self.df.groupby("week").transform("size")
 
     def _validate_df_obeys_schema(self) -> None:
         """

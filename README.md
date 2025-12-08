@@ -14,7 +14,6 @@ current capabilities
     - session frequency and session gaps
     - rolling average weight of each regieme (power, strength, endurance etc)
     
-
 ---
 
 ## Setup
@@ -86,3 +85,14 @@ You can create your own plotting functions, note all plotting functions must fol
 
 - Basic hyperbolic curve fitting is included (`fit_power_curve_with_hyperbolic_decay`).
 - Piecewise curve fitting will be added in future updates.
+
+
+---
+
+## Example plots
+
+![Power Curve](example_plots/power_curve.png)
+
+![Rolling Average Plot](example_plots/rolling_average_weight.png)
+
+![Session Frequency](example_plots/session_frequency.png)

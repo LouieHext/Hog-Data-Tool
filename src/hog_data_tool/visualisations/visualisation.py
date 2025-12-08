@@ -41,7 +41,7 @@ def plot_power_curve(
 
     # scatter plot, opacacity relative date
     fig, ax = create_figure()
-    title = f"Power Curve (Weight vs Max Hold Time) ({data.latest_date.date()})"
+    title = f"Power Curve (Weight vs Max Hold Time) ({data.label}) ({data.latest_date.date()})"
     x_label = f"Weight ({data.weight_unit})"
     y_label = "Max Hold Time (s)"
     style_axis(ax, title=title, x_label=x_label, y_label=y_label)
@@ -110,7 +110,7 @@ def plot_rolling_average_weight_in_regimes(
     if not regime_weights:
         return fig, ax
 
-    title = "Rolling Average Weight in Regimes"
+    title = f"Rolling Average Weight in Regimes ({data.label})"
     x_label = "Session date"
     y_label = f"Weight ({data.weight_unit})"
     style_axis(ax, title=title, x_label=x_label, y_label=y_label)
@@ -155,7 +155,7 @@ def plot_inverted_power_curve(
 
     # scatter plot, opacacity relative date
     fig, ax = create_figure()
-    title = f"Inverted Power Curve (Weight vs Inverted Max Hold Time) ({data.latest_date.date()})"
+    title = f"Inverted Power Curve (Weight vs Inverted Max Hold Time) ({data.label}) ({data.latest_date.date()})"
     y_label = f"Weight ({data.weight_unit})"
     x_label = "Inverted Max Hold Time (s)"
     style_axis(ax, title=title, x_label=x_label, y_label=y_label)
@@ -206,10 +206,10 @@ def plot_session_gap(
         data = [data]
 
     # line plot of session frequency over time
-    dates = [data.latest_date.date() for data in data]
-    fig, ax = create_figure()
-    title = f"Session Gap Over Time ({max(dates)})"
+    date = data[0].latest_date.date()
+    title = f"Session Gap Over Time ({data[0].label}) ({date})"
     x_label = "Date"
+    fig, ax = create_figure()
     y_label = "Time since last session (days)"
     style_axis(ax, title=title, x_label=x_label, y_label=y_label)
 
@@ -260,10 +260,9 @@ def plot_session_frequency(
     if not (isinstance(data, list)):
         data = [data]
 
-    dates = [data.latest_date.date() for data in data]
-
+    date = data[0].latest_date.date()
+    title = f"Sessions Per Week ({data[0].label}) ({date})"
     fig, ax = create_figure()
-    title = f"Sessions Per Week ({max(dates)})"
     y_label = "Number of Sessions"
     x_label = "Date"
     style_axis(ax, title=title, x_label=x_label, y_label=y_label)
@@ -273,7 +272,7 @@ def plot_session_frequency(
         rolling_sessions = session_data.rolling_sessions_per_week.dropna()
         if rolling_sessions.empty:
             continue
-
+        
         upper_value = max(upper_value, rolling_sessions.max())
         ax.plot(
             rolling_sessions.index.to_numpy(),
