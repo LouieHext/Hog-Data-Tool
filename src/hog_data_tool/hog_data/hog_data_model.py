@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 from hog_data_tool.env_config import get_weight_unit
 from hog_data_tool.hog_data.definitions import (
@@ -74,29 +76,26 @@ class StructuredHogData:
         }
 
     def create_plot_for_all_grippers(
-        self, plot_method: SessionPlotMethod, output_path: Path
-    ) -> None:
+        self, plot_method: SessionPlotMethod, output_path: Path, **kwargs
+    ) -> dict[str, tuple[Figure, Axes]]:
+        results = {}
         for name, gripper_data in self.named_data_pairs.items():
-            plot_method(
-                gripper_data,
-                output_path / f"{name}_plot.png",
-            )
+            results[name] = plot_method(gripper_data, output_path / f"{name}_plot.png", **kwargs)
+        return results
 
     def create_shared_gripper_plot(
         self,
         plot_method: SharedSessionPlotMethod,
         output_path: Path,
         only_show_right: bool = True,
-    ) -> None:
+        **kwargs,
+    ) -> tuple[Figure, Axes]:
 
         all_data = self.all_data
         if only_show_right:
             all_data = self.right_gripper_data
 
-        plot_method(
-            all_data,
-            output_path,
-        )
+        return plot_method(all_data, output_path, **kwargs)
 
 
 @dataclass()

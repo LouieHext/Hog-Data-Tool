@@ -38,7 +38,7 @@ class HogDataRow(BaseModel):
     def coerce_session_number(cls, v) -> int:
         if isinstance(v, str) and v.isdigit():
             return int(v)
-        raise ValueError(f"session number {v} is not an interger")
+        raise ValueError(f"session number {v} is not an integer")
 
 
 def load_hog_data_from_csv(path: Path) -> list[HogDataRow]:

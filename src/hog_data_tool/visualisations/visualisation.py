@@ -156,7 +156,7 @@ def plot_session_gap(
     for session_data in data:
         rolling_gap_na_indexs = session_data.rolling_session_gap_days.dropna().index
         rolling_gap_days = session_data.rolling_session_gap_days.dropna()
-        start_dates = session_data.sorted_session_dates.loc[rolling_gap_na_indexs]
+        start_dates = session_data.date.loc[rolling_gap_na_indexs]
 
         if rolling_gap_days.empty:
             continue
@@ -205,8 +205,8 @@ def plot_session_frequency(
 
         upper_value = max(upper_value, rolling_sessions.max())
         ax.plot(
-            rolling_sessions.index,
-            rolling_sessions.values,
+            rolling_sessions.index.to_numpy(),
+            rolling_sessions.to_numpy(),
             marker="o",
             linestyle="-",
             markersize=6,

@@ -13,7 +13,8 @@ def main(config: EnvConfig) -> None:
     data = StructuredHogData.from_csv(config.input_data_path)
 
     data.create_plot_for_all_grippers(
-        plot_method=plot_power_curve, output_path=config.output_data_path / "power_curve"
+        plot_method=plot_power_curve,
+        output_path=config.output_data_path / "power_curve",
     )
 
     data.create_plot_for_all_grippers(
