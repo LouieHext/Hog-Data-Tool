@@ -28,6 +28,7 @@ def main() -> None:
     data.create_plot_for_all_grippers(
         plot_method=plot_piecewise_power_curve,
         output_path=config.output_data_path / "piecewise_power_curve",
+        min_sessions=0,  # curve fits: always try to produce hyperbolic fit
     )
 
     data.create_shared_gripper_plot(
@@ -42,6 +43,7 @@ def main() -> None:
     data.create_plot_for_all_grippers(
         plot_method=plot_rolling_average_weight_in_regimes,
         output_path=config.output_data_path / "rolling_average_weight_in_regimes",
+        min_sessions=30,  # progress charts: skip low-session grippers
     )
 
 

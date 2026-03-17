@@ -92,9 +92,12 @@ class FullSessionData:
     def normalised_session_age(self) -> pd.Series[float]:
         """
         Return session age scaled to [0, 1], where 1 = oldest session
-        and 0 = most recent.
+        and 0 = most recent. When all sessions are on the same day (max_age 0),
+        returns 0 for all so plots (e.g. alpha) stay valid.
         """
         max_age = self.session_age_days.max()
+        if max_age == 0:
+            return pd.Series(0.0, index=self.df.index)
         return self.session_age_days / max_age
 
     @cached_property

@@ -162,65 +162,8 @@ def plot_piecewise_power_curve(
     else:
         fit_data = data
 
-    try:
-        piecewise_fit = fit_piecewise_power_curve(
-            fit_data.weight,
-            fit_data.max_hold,
-            session_age=fit_data.normalised_session_age,
-        )
-
-        # Generate smooth curve for plotting
-        weights = np.linspace(data.weight.min(), data.weight.max(), 200)
-        hold_fit = piecewise_fit.predict(weights)
-
-        # Split into linear and hyperbolic portions for different colors
-        linear_mask = weights >= piecewise_fit.transition_weight
-        hyper_mask = weights < piecewise_fit.transition_weight
-
-        # Plot hyperbolic portion (endurance)
-        ax.plot(
-            weights[hyper_mask],
-            hold_fit[hyper_mask],
-            color="green",
-            linewidth=2.5,
-            label="Endurance (hyperbolic)",
-        )
-
-        # Plot linear portion (power)
-        ax.plot(
-            weights[linear_mask],
-            hold_fit[linear_mask],
-            color="orange",
-            linewidth=2.5,
-            label="Power (linear)",
-        )
-
-        # Mark transition point
-        ax.axvline(
-            x=piecewise_fit.transition_weight,
-            color="gray",
-            linestyle="--",
-            linewidth=1.5,
-            alpha=0.7,
-            label=f"Transition @ {piecewise_fit.transition_weight:.1f} {data.weight_unit}",
-        )
-
-        # Add transition point marker
-        ax.scatter(
-            [piecewise_fit.transition_weight],
-            [piecewise_fit.transition_hold_time],
-            color="red",
-            marker="D",
-            s=100,
-            zorder=5,
-            edgecolors="black",
-            linewidths=1,
-        )
-
-        ax.legend(loc="upper right")
-
-    except (RuntimeError, ValueError) as e:
-        # Fall back to simple hyperbolic on fitting errors
+    if fit_data.number_of_sessions < max_sessions_for_fit:
+        # Few sessions: use simple hyperbolic curve only
         curve_fit = fit_power_curve_with_hyperbolic_decay(
             fit_data.weight,
             fit_data.max_hold,
@@ -228,8 +171,70 @@ def plot_piecewise_power_curve(
         )
         weights = np.linspace(data.weight.min(), data.weight.max(), 100)
         hold_fit = curve_fit.predict(weights)
-        ax.plot(weights, hold_fit, color="red", linewidth=2, label=f"Hyperbolic (fallback: {e})")
+        ax.plot(weights, hold_fit, color="red", linewidth=2, label="Hyperbolic")
         ax.legend()
+    else:
+        try:
+            piecewise_fit = fit_piecewise_power_curve(
+                fit_data.weight,
+                fit_data.max_hold,
+                session_age=fit_data.normalised_session_age,
+            )
+
+            weights = np.linspace(data.weight.min(), data.weight.max(), 200)
+            hold_fit = piecewise_fit.predict(weights)
+
+            linear_mask = weights >= piecewise_fit.transition_weight
+            hyper_mask = weights < piecewise_fit.transition_weight
+
+            ax.plot(
+                weights[hyper_mask],
+                hold_fit[hyper_mask],
+                color="green",
+                linewidth=2.5,
+                label="Endurance (hyperbolic)",
+            )
+
+            ax.plot(
+                weights[linear_mask],
+                hold_fit[linear_mask],
+                color="orange",
+                linewidth=2.5,
+                label="Power (linear)",
+            )
+
+            ax.axvline(
+                x=piecewise_fit.transition_weight,
+                color="gray",
+                linestyle="--",
+                linewidth=1.5,
+                alpha=0.7,
+                label=f"Transition @ {piecewise_fit.transition_weight:.1f} {data.weight_unit}",
+            )
+
+            ax.scatter(
+                [piecewise_fit.transition_weight],
+                [piecewise_fit.transition_hold_time],
+                color="red",
+                marker="D",
+                s=100,
+                zorder=5,
+                edgecolors="black",
+                linewidths=1,
+            )
+
+            ax.legend(loc="upper right")
+
+        except (RuntimeError, ValueError) as e:
+            curve_fit = fit_power_curve_with_hyperbolic_decay(
+                fit_data.weight,
+                fit_data.max_hold,
+                session_age=fit_data.normalised_session_age,
+            )
+            weights = np.linspace(data.weight.min(), data.weight.max(), 100)
+            hold_fit = curve_fit.predict(weights)
+            ax.plot(weights, hold_fit, color="red", linewidth=2, label=f"Hyperbolic (fallback: {e})")
+            ax.legend()
 
     save_figure(fig, output_path)
 
