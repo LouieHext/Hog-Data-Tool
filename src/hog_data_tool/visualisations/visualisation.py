@@ -1,7 +1,11 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from hog_data_tool.analysis.curve_fit import fit_power_curve_with_hyperbolic_decay
+from hog_data_tool.analysis.curve_fit import (
+    fit_piecewise_power_curve,
+    fit_power_curve_with_hyperbolic_decay,
+)
+import numpy as np
 from hog_data_tool.analysis.progress import (
     find_sparse_weight,
     rolling_average_weight_in_regimes,
@@ -23,7 +27,10 @@ type SharedSessionPlotMethod = Callable[
 
 
 def plot_power_curve(
-    data: FullSessionData, output_path: Path | None = None, show_curve_fit: bool = True
+    data: FullSessionData,
+    output_path: Path | None = None,
+    show_curve_fit: bool = True,
+    max_sessions_for_fit: int = 30
 ) -> tuple[Figure, Axes]:
     """
     Plot a scatter of weight vs max hold time for a session, optionally overlaying
@@ -33,6 +40,8 @@ def plot_power_curve(
         data: FullSessionData containing weights and max hold times.
         output_path: Optional path to save the generated figure.
         show_curve_fit: Whether to overlay the fitted hyperbolic curve.
+        max_sessions_for_fit: Maximum number of recent sessions to use for curve fitting.
+            Defaults to 30 to focus on recent performance.
 
     Returns:
         A tuple containing the matplotlib Figure and Axes objects.
@@ -58,7 +67,20 @@ def plot_power_curve(
     )
 
     if show_curve_fit:
-        curve_fit = fit_power_curve_with_hyperbolic_decay(data.weight, data.max_hold)
+        # Filter to recent sessions for curve fitting
+        if data.number_of_sessions > max_sessions_for_fit:
+            fit_data = data.select_sessions_from_range(
+                start_session=data.number_of_sessions - max_sessions_for_fit + 1,
+                end_session=data.number_of_sessions,
+            )
+        else:
+            fit_data = data
+
+        curve_fit = fit_power_curve_with_hyperbolic_decay(
+            fit_data.weight,
+            fit_data.max_hold,
+            session_age=fit_data.normalised_session_age,
+        )
         weights = data.weight.sort_values().to_numpy()
         hold_fit = curve_fit.predict(weights)
 
@@ -81,6 +103,132 @@ def plot_power_curve(
             markersize=10,
             label=f"Suggest weight {round(weight, 2)} {data.weight_unit.name}",
         )
+        ax.legend()
+
+    save_figure(fig, output_path)
+
+    return fig, ax
+
+
+def plot_piecewise_power_curve(
+    data: FullSessionData,
+    output_path: Path | None = None,
+    max_sessions_for_fit: int = 30,
+) -> tuple[Figure, Axes]:
+    """
+    Plot a piecewise power curve with linear (power) and hyperbolic (endurance) segments.
+
+    The model uses:
+    - Linear fit for high weights (power regime, short hold times)
+    - Hyperbolic decay for low weights (endurance regime, long hold times)
+
+    The transition point between regimes is automatically determined by optimization,
+    constrained to have hold time >= 60s at the transition.
+
+    Args:
+        data: FullSessionData containing weights and max hold times.
+        output_path: Optional path to save the generated figure.
+        max_sessions_for_fit: Maximum number of recent sessions to use for curve fitting.
+
+    Returns:
+        A tuple containing the matplotlib Figure and Axes objects.
+    """
+    alpha = (1 - data.normalised_session_age) * 0.9
+
+    fig, ax = create_figure()
+    title = f"Piecewise Power Curve ({data.label}) ({data.latest_date.date()})"
+    x_label = f"Weight ({data.weight_unit})"
+    y_label = "Max Hold Time (s)"
+    style_axis(ax, title=title, x_label=x_label, y_label=y_label)
+    set_hog_time_axis(ax)
+
+    # Scatter plot with opacity based on recency
+    ax.scatter(
+        data.weight,
+        data.max_hold,
+        alpha=alpha,  # pyright: ignore[reportArgumentType]
+        c="blue",
+        s=80,
+        edgecolors="black",
+        linewidths=0.5,  # pyright: ignore[reportArgumentType]
+    )
+
+    # Filter to recent sessions for curve fitting
+    if data.number_of_sessions > max_sessions_for_fit:
+        fit_data = data.select_sessions_from_range(
+            start_session=data.number_of_sessions - max_sessions_for_fit + 1,
+            end_session=data.number_of_sessions,
+        )
+    else:
+        fit_data = data
+
+    try:
+        piecewise_fit = fit_piecewise_power_curve(
+            fit_data.weight,
+            fit_data.max_hold,
+            session_age=fit_data.normalised_session_age,
+        )
+
+        # Generate smooth curve for plotting
+        weights = np.linspace(data.weight.min(), data.weight.max(), 200)
+        hold_fit = piecewise_fit.predict(weights)
+
+        # Split into linear and hyperbolic portions for different colors
+        linear_mask = weights >= piecewise_fit.transition_weight
+        hyper_mask = weights < piecewise_fit.transition_weight
+
+        # Plot hyperbolic portion (endurance)
+        ax.plot(
+            weights[hyper_mask],
+            hold_fit[hyper_mask],
+            color="green",
+            linewidth=2.5,
+            label="Endurance (hyperbolic)",
+        )
+
+        # Plot linear portion (power)
+        ax.plot(
+            weights[linear_mask],
+            hold_fit[linear_mask],
+            color="orange",
+            linewidth=2.5,
+            label="Power (linear)",
+        )
+
+        # Mark transition point
+        ax.axvline(
+            x=piecewise_fit.transition_weight,
+            color="gray",
+            linestyle="--",
+            linewidth=1.5,
+            alpha=0.7,
+            label=f"Transition @ {piecewise_fit.transition_weight:.1f} {data.weight_unit}",
+        )
+
+        # Add transition point marker
+        ax.scatter(
+            [piecewise_fit.transition_weight],
+            [piecewise_fit.transition_hold_time],
+            color="red",
+            marker="D",
+            s=100,
+            zorder=5,
+            edgecolors="black",
+            linewidths=1,
+        )
+
+        ax.legend(loc="upper right")
+
+    except (RuntimeError, ValueError) as e:
+        # Fall back to simple hyperbolic on fitting errors
+        curve_fit = fit_power_curve_with_hyperbolic_decay(
+            fit_data.weight,
+            fit_data.max_hold,
+            session_age=fit_data.normalised_session_age,
+        )
+        weights = np.linspace(data.weight.min(), data.weight.max(), 100)
+        hold_fit = curve_fit.predict(weights)
+        ax.plot(weights, hold_fit, color="red", linewidth=2, label=f"Hyperbolic (fallback: {e})")
         ax.legend()
 
     save_figure(fig, output_path)
@@ -136,7 +284,10 @@ def plot_rolling_average_weight_in_regimes(
 
 
 def plot_inverted_power_curve(
-    data: FullSessionData, output_path: Path | None = None, show_curve_fit: bool = True
+    data: FullSessionData,
+    output_path: Path | None = None,
+    show_curve_fit: bool = True,
+    max_sessions_for_fit: int = 10
 ) -> tuple[Figure, Axes]:
     """
     Plot weight against max hold time in an inverted format, optionally overlaying
@@ -146,6 +297,8 @@ def plot_inverted_power_curve(
         data: FullSessionData containing weights and max hold times.
         output_path: Optional path to save the generated figure.
         show_curve_fit: Whether to overlay the inverted fitted curve.
+        max_sessions_for_fit: Maximum number of recent sessions to use for curve fitting.
+            Defaults to 30 to focus on recent performance.
 
     Returns:
         A tuple containing the matplotlib Figure and Axes objects.
@@ -171,7 +324,20 @@ def plot_inverted_power_curve(
     )
 
     if show_curve_fit:
-        curve_fit = fit_power_curve_with_hyperbolic_decay(data.weight, data.max_hold)
+        # Filter to recent sessions for curve fitting
+        if data.number_of_sessions > max_sessions_for_fit:
+            fit_data = data.select_sessions_from_range(
+                start_session=data.number_of_sessions - max_sessions_for_fit + 1,
+                end_session=data.number_of_sessions,
+            )
+        else:
+            fit_data = data
+
+        curve_fit = fit_power_curve_with_hyperbolic_decay(
+            fit_data.weight,
+            fit_data.max_hold,
+            session_age=fit_data.normalised_session_age,
+        )
         hold_times = data.max_hold.sort_values().to_numpy()
         weights = curve_fit.inverted_predict(hold_times)
 

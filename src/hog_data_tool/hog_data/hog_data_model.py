@@ -117,7 +117,11 @@ class StructuredHogData:
         }
 
     def create_plot_for_all_grippers(
-        self, plot_method: SessionPlotMethod, output_path: Path, **kwargs
+        self,
+        plot_method: SessionPlotMethod,
+        output_path: Path,
+        min_sessions: int = 30,
+        **kwargs,
     ) -> dict[str, tuple[Figure, Axes]]:
         """
         Create a separate plot for each gripper/side dataset.
@@ -128,6 +132,8 @@ class StructuredHogData:
             Callable that receives a FullSessionData instance and produces a plot.
         output_path : Path
             Directory in which plots will be saved.
+        min_sessions : int, default=10
+            Skip grippers with fewer than this many sessions.
 
         Returns
         -------
@@ -136,6 +142,9 @@ class StructuredHogData:
         """
         results = {}
         for name, gripper_data in self.named_data_pairs.items():
+            if gripper_data.number_of_sessions < min_sessions:
+                print(f"Skipping {name}: only {gripper_data.number_of_sessions} sessions (< {min_sessions})")
+                continue
             results[name] = plot_method(
                 gripper_data,
                 output_path / f"{name}_plot.png",
