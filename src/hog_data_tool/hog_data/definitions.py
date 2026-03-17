@@ -26,17 +26,9 @@ class GripperEnum(StrEnum):
 
 class SessionDataColumn(StrEnum):
     DATE_TIME = auto()
-    REPS = auto()
-    REST = auto()
     WEIGHT = auto()
     MAX_HOLD = auto()
-    VOLUME = auto()
-    power = auto()
-    success_power = auto()
-    anaerobic = auto()
-    success_anaerobic = auto()
-    success_aerobic = auto()
-
+ 
 
 class WeightUnit(StrEnum):
     LBS = auto()

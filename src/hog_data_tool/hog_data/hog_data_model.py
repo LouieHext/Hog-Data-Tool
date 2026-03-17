@@ -36,6 +36,7 @@ class StructuredHogData:
     micro_data: GripperData
     crusher_data: GripperData
     prime_data: GripperData
+    other_data: dict[str, GripperData]
 
     @classmethod
     def from_hog_df(cls, df: pd.DataFrame) -> StructuredHogData:
@@ -53,9 +54,10 @@ class StructuredHogData:
             Parsed and structured per-gripper data.
         """
         return cls(
-            micro_data=GripperData.from_hog_df(df, GripperEnum.MICRO),
-            crusher_data=GripperData.from_hog_df(df, GripperEnum.CRUSHER),
-            prime_data=GripperData.from_hog_df(df, GripperEnum.PRIME),
+            micro_data=GripperData.from_df(df, GripperEnum.MICRO),
+            crusher_data=GripperData.from_df(df, GripperEnum.CRUSHER),
+            prime_data=GripperData.from_df(df, GripperEnum.PRIME),
+            other_data={},
         )
 
     @classmethod
@@ -81,6 +83,54 @@ class StructuredHogData:
 
         return cls.from_hog_df(df)
 
+    @classmethod
+    def from_csvs(
+        cls,
+        hog_path: Path,
+        other_path: Path | None = None,
+    ) -> StructuredHogData:
+        """
+        Load structured data from the hog CSV and optionally from another path.
+
+        The hog CSV is parsed as HOG data (Micro, Crusher, Prime). If
+        `other_path` is set (file or directory), generic session CSVs are
+        loaded and split by their "gripper" column; each unique gripper
+        becomes one entry in other_data.
+
+        Parameters
+        ----------
+        hog_path : Path
+            Path to the main HOG export CSV.
+        other_path : Path, optional
+            Path to a single CSV or a directory of CSVs. Each CSV must have
+            date_time, reps, rest, weight, max_hold, side, gripper. Gripper
+            values are used as keys in other_data.
+
+        Returns
+        -------
+        StructuredHogData
+            Combined structured dataset.
+        """
+        from hog_data_tool.hog_data.reader import load_generic_session_data
+
+        base = cls.from_csv(hog_path)
+        other_data = dict(base.other_data)
+        if other_path is not None:
+            df = load_generic_session_data(other_path)
+            if not df.empty:
+                if get_weight_unit() == WeightUnit.KGS:
+                    df[SessionDataColumn.WEIGHT] /= 2.21
+                for gripper_val in df["gripper"].unique():
+                    other_data[str(gripper_val)] = GripperData.from_df(
+                        df, gripper_val, filter_by_gripper=True
+                    )
+        return cls(
+            micro_data=base.micro_data,
+            crusher_data=base.crusher_data,
+            prime_data=base.prime_data,
+            other_data=other_data,
+        )
+
     @property
     def all_data(self) -> list[FullSessionData]:
         """Return a list of all left/right session datasets for all grippers."""
@@ -88,8 +138,13 @@ class StructuredHogData:
 
     @property
     def all_gripper_data(self) -> list[GripperData]:
-        """Return a list containing GripperData objects for Micro, Crusher, Prime."""
-        return [self.crusher_data, self.micro_data, self.prime_data]
+        """Return a list containing GripperData for Micro, Crusher, Prime and any other_data."""
+        return [
+            self.crusher_data,
+            self.micro_data,
+            self.prime_data,
+            *self.other_data.values(),
+        ]
 
     @property
     def right_gripper_data(self) -> list[FullSessionData]:
@@ -106,8 +161,9 @@ class StructuredHogData:
         """
         Return a dictionary mapping human-readable names
         (e.g. 'micro_left') to FullSessionData instances.
+        Includes hog grippers plus any other_data keys as {name}_left / {name}_right.
         """
-        return {
+        out: dict[str, FullSessionData] = {
             "micro_left": self.micro_data.left_data,
             "micro_right": self.micro_data.right_data,
             "crusher_left": self.crusher_data.left_data,
@@ -115,6 +171,10 @@ class StructuredHogData:
             "prime_left": self.prime_data.left_data,
             "prime_right": self.prime_data.right_data,
         }
+        for name, gd in self.other_data.items():
+            out[f"{name}_left"] = gd.left_data
+            out[f"{name}_right"] = gd.right_data
+        return out
 
     def create_plot_for_all_grippers(
         self,
@@ -187,37 +247,49 @@ class StructuredHogData:
 class GripperData:
     """
     Container for left and right session datasets for a single gripper type.
+    `gripper` is GripperEnum for hog data (Micro, Crusher, Prime) or str for other sources.
     """
 
-    gripper: GripperEnum
+    gripper: GripperEnum | str
     left_data: FullSessionData
     right_data: FullSessionData
 
     @classmethod
-    def from_hog_df(cls, df: pd.DataFrame, gripper: GripperEnum) -> GripperData:
+    def from_df(
+        cls,
+        df: pd.DataFrame,
+        gripper: GripperEnum | str,
+        *,
+        filter_by_gripper: bool = True,
+    ) -> GripperData:
         """
-        Construct GripperData for a specific gripper type by splitting on side (left/right).
+        Construct GripperData by splitting the dataframe on side (left/right).
 
         Parameters
         ----------
         df : pd.DataFrame
-            Raw hog session dataframe.
-        gripper : GripperEnum
-            Gripper to filter for (e.g. MICRO, CRUSHER, PRIME).
+            DataFrame with SessionDataColumn columns and "side". If
+            filter_by_gripper is True, must also have a "gripper" column.
+        gripper : GripperEnum | str
+            Gripper or source identifier. When filter_by_gripper is True,
+            only rows where df["gripper"] == gripper are used (hog-style).
+        filter_by_gripper : bool, default True
+            If True, filter to rows with this gripper before splitting by side.
+            If False, use all rows (e.g. generic CSV with no gripper column).
 
         Returns
         -------
         GripperData
-            Left and right datasets for this gripper.
+            Left and right datasets for this gripper/source.
         """
-        left_df = df[(df["gripper"] == gripper) & (df["side"] == SideEnum.LEFT)]
-        right_df = df[(df["gripper"] == gripper) & (df["side"] == SideEnum.RIGHT)]
-
-        left_df = left_df[[col.value for col in SessionDataColumn]]
-        right_df = right_df[[col.value for col in SessionDataColumn]]
-
+        if filter_by_gripper:
+            df = df[df["gripper"] == gripper]
+        cols = [col.value for col in SessionDataColumn]
+        left_df = df[df["side"] == SideEnum.LEFT][cols].copy()
+        right_df = df[df["side"] == SideEnum.RIGHT][cols].copy()
+        label = str(gripper)
         return cls(
             gripper=gripper,
-            left_data=FullSessionData(df=left_df, label=f"{gripper.value} Left"),
-            right_data=FullSessionData(df=right_df, label=f"{gripper.value} Right"),
+            left_data=FullSessionData(df=left_df, label=f"{label} Left"),
+            right_data=FullSessionData(df=right_df, label=f"{label} Right"),
         )

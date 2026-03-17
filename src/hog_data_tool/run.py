@@ -1,4 +1,4 @@
-from hog_data_tool.env_config import get_env_config
+from hog_data_tool.env_config import EnvConfig, get_env_config
 from hog_data_tool.hog_data.hog_data_model import StructuredHogData
 from hog_data_tool.visualisations.visualisation import (
     plot_piecewise_power_curve,
@@ -8,9 +8,22 @@ from hog_data_tool.visualisations.visualisation import (
 )
 
 
+def load_structured_data(config: EnvConfig) -> StructuredHogData:
+    """Load StructuredHogData from config: 
+    main CSV and, if set, other data from alt_data_folder (file or directory).
+    Grippers are read from the 'gripper' column."""
+    alt_path = config.alt_data_folder
+    if alt_path is not None and str(alt_path).strip() and alt_path.exists():
+        return StructuredHogData.from_csvs(
+            config.input_data_path,
+            other_path=alt_path,
+        )
+    return StructuredHogData.from_csv(config.input_data_path)
+
+
 def main() -> None:
     config = get_env_config()
-    data = StructuredHogData.from_csv(config.input_data_path)
+    data = load_structured_data(config)
 
     data.create_plot_for_all_grippers(
         plot_method=plot_piecewise_power_curve,

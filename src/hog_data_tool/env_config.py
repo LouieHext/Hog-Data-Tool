@@ -32,6 +32,7 @@ class EnvConfig(EnvSettings):
     input_data_path: Path
     output_data_path: Path
     weight_unit: WeightUnit
+    alt_data_folder: Path | None = None
 
 
 @cache
