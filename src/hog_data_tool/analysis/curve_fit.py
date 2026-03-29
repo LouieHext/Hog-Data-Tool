@@ -107,7 +107,7 @@ def fit_power_curve_with_hyperbolic_decay(
     hold_times: pd.Series,
     previous_fit: HyperbolicCurveFit | None = None,
     session_age: pd.Series | None = None,
-    age_weight_strength: float = 0.3,
+    age_weight_strength: float = 0.18,
 ) -> HyperbolicCurveFit:
     """
     Fit a hyperbolic decay curve to weight vs hold time data.
@@ -217,9 +217,7 @@ class PiecewiseCurveFit:
 
         # Linear regime (high weights, power)
         linear_mask = w >= self.transition_weight
-        result[linear_mask] = linear_model(
-            w[linear_mask], self.linear_m, self.linear_intercept
-        )
+        result[linear_mask] = linear_model(w[linear_mask], self.linear_m, self.linear_intercept)
 
         # Hyperbolic regime (low weights, endurance)
         hyper_mask = w < self.transition_weight
@@ -259,7 +257,7 @@ def fit_piecewise_power_curve(
     min_points_per_regime: int = 5,
     min_transition_hold_time: float = 60.0,
     session_age: pd.Series | None = None,
-    age_weight_strength: float = 0.5,
+    age_weight_strength: float = 0.3,
 ) -> PiecewiseCurveFit:
     """
     Fit a piecewise curve with linear (power) and hyperbolic (endurance) segments.

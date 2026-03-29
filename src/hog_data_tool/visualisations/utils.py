@@ -10,8 +10,8 @@ def set_hog_time_axis(
     ax: Axes,
 ) -> None:
     """Set consistent time axis formatting for HOG plots."""
-    ax.set_yticks([30, 60, 90, 120, 180, 240, 300])
-    ax.set_ylim(0, 320)
+    ax.set_yticks([0, 30, 60, 90, 120, 180, 240, 300])
+    ax.set_ylim(0, 300)
 
 
 def style_axis(

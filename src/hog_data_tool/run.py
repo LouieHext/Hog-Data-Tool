@@ -9,7 +9,7 @@ from hog_data_tool.visualisations.visualisation import (
 
 
 def load_structured_data(config: EnvConfig) -> StructuredHogData:
-    """Load StructuredHogData from config: 
+    """Load StructuredHogData from config:
     main CSV and, if set, other data from alt_data_folder (file or directory).
     Grippers are read from the 'gripper' column."""
     alt_path = config.alt_data_folder

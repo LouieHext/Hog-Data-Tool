@@ -1,13 +1,21 @@
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 from hog_data_tool.analysis.curve_fit import (
+    HyperbolicCurveFit,
+    PiecewiseCurveFit,
     fit_piecewise_power_curve,
     fit_power_curve_with_hyperbolic_decay,
 )
-import numpy as np
 from hog_data_tool.analysis.progress import (
+    HOLD_TIME_BANDS,
+    HOLD_TIME_COVERAGE_DISPLAY_Y_HI,
+    HOLD_TIME_COVERAGE_DISPLAY_Y_LO,
+    coverage_mean_intensity_vs_hold,
     find_sparse_weight,
+    pick_recommendation_band_index,
+    recent_coverage_scores_at_hold_times,
     rolling_average_weight_in_regimes,
 )
 from hog_data_tool.hog_data.session_data import FullSessionData
@@ -17,7 +25,9 @@ from hog_data_tool.visualisations.utils import (
     set_hog_time_axis,
     style_axis,
 )
+from matplotlib import colormaps
 from matplotlib.axes import Axes
+from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
 
 type SessionPlotMethod = Callable[[FullSessionData, Path | None], tuple[Figure, Axes]]
@@ -26,11 +36,30 @@ type SharedSessionPlotMethod = Callable[
 ]
 
 
+def _session_scatter_face_edge_rgba(
+    data: FullSessionData,
+    *,
+    face_color: str = "tab:blue",
+    alpha_scale: float = 0.9,
+    linewidths: float = 1.2,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """
+    Face and edge RGBA arrays for weight–hold scatter: blue (or ``face_color``) fill and black
+    ring, each channel using the same per-point alpha (recency).
+    """
+    alphas = ((1 - data.normalised_session_age) * alpha_scale).to_numpy(dtype=float)
+    n = len(alphas)
+    fr, fg, fb, _ = to_rgba(face_color)
+    facecolors = np.column_stack([np.full(n, fr), np.full(n, fg), np.full(n, fb), alphas])
+    edgecolors = np.column_stack([np.zeros(n), np.zeros(n), np.zeros(n), alphas])
+    return facecolors, edgecolors, linewidths
+
+
 def plot_power_curve(
     data: FullSessionData,
     output_path: Path | None = None,
     show_curve_fit: bool = True,
-    max_sessions_for_fit: int = 30
+    max_sessions_for_fit: int = 30,
 ) -> tuple[Figure, Axes]:
     """
     Plot a scatter of weight vs max hold time for a session, optionally overlaying
@@ -46,9 +75,8 @@ def plot_power_curve(
     Returns:
         A tuple containing the matplotlib Figure and Axes objects.
     """
-    alpha = (1 - data.normalised_session_age) * 0.9
+    fc, ec, lw = _session_scatter_face_edge_rgba(data)
 
-    # scatter plot, opacacity relative date
     fig, ax = create_figure()
     title = f"Power Curve (Weight vs Max Hold Time) ({data.label}) ({data.latest_date.date()})"
     x_label = f"Weight ({data.weight_unit})"
@@ -59,11 +87,10 @@ def plot_power_curve(
     ax.scatter(
         data.weight,
         data.max_hold,
-        alpha=alpha,  # pyright: ignore[reportArgumentType]
-        c="blue",
         s=80,
-        edgecolors="black",
-        linewidths=0.5,  # pyright: ignore[reportArgumentType]
+        facecolors=fc,
+        edgecolors=ec,
+        linewidths=lw,
     )
 
     if show_curve_fit:
@@ -110,10 +137,99 @@ def plot_power_curve(
     return fig, ax
 
 
+def draw_hold_time_coverage_bands_on_axes(
+    ax: Axes,
+    data: FullSessionData,
+    *,
+    coverage_cmap: str = "Blues",
+    band_alpha: float = 0.5,
+    cmap_vmin: float = 0.22,
+    cmap_vmax: float = 0.92,
+    coverage_y_samples: int = 601,
+    coverage_smooth_sigma: float = 2.5,
+) -> np.ndarray:
+    """
+    Draw a smooth coverage wash over ``HOLD_TIME_COVERAGE_DISPLAY_Y_LO`` … ``_HI`` (0–300 s):
+    mean per-band score at each hold time, Gaussian smoothing, thin horizontal slices by intensity.
+
+    Returns per-band coverage scores (same order as ``HOLD_TIME_BANDS``) for recommendation.
+    """
+    scores = recent_coverage_scores_at_hold_times(data)
+    y, intensity = coverage_mean_intensity_vs_hold(
+        scores,
+        y_min=HOLD_TIME_COVERAGE_DISPLAY_Y_LO,
+        y_max=HOLD_TIME_COVERAGE_DISPLAY_Y_HI,
+        n_samples=coverage_y_samples,
+        smooth_sigma=coverage_smooth_sigma,
+    )
+    i_max = float(np.max(intensity))
+    if i_max <= 0:
+        f_norm = np.zeros_like(intensity)
+    else:
+        f_norm = intensity / i_max
+    cmap = colormaps[coverage_cmap]
+    for k in range(len(y) - 1):
+        t = 0.5 * (float(f_norm[k]) + float(f_norm[k + 1]))
+        t_color = cmap_vmin + (cmap_vmax - cmap_vmin) * t
+        facecolor = to_rgba(cmap(t_color), alpha=band_alpha)
+        ax.axhspan(float(y[k]), float(y[k + 1]), facecolor=facecolor, zorder=0, linewidth=0)
+    return scores
+
+
+def draw_next_session_hold_recommendation_on_axes(
+    ax: Axes,
+    data: FullSessionData,
+    curve_fit: HyperbolicCurveFit | PiecewiseCurveFit,
+    scores: np.ndarray,
+) -> tuple[float, float | None]:
+    """
+    Mark the recommended next-session hold (lowest-scoring band among midpoints in
+    ``[HOLD_TIME_RECOMMEND_LO, HOLD_TIME_RECOMMEND_HI]``) with a horizontal line and diamond.
+    """
+    best_idx = pick_recommendation_band_index(scores)
+    lo, hi = float(HOLD_TIME_BANDS[best_idx, 0]), float(HOLD_TIME_BANDS[best_idx, 1])
+    best_h = (lo + hi) / 2.0
+    score_at_best = float(scores[best_idx])
+    unit = data.weight_unit.name
+    suggested_w: float | None = None
+    try:
+        suggested_w = float(curve_fit.weight_for_hold(best_h))
+    except ValueError:
+        pass
+
+    ax.axhline(
+        y=best_h,
+        color="red",
+        linestyle="--",
+        linewidth=1.8,
+        alpha=0.9,
+        zorder=4,
+        label=(
+            f"Next hold ~{best_h:.0f}s @ ~{suggested_w:.1f} {unit} (coverage {score_at_best:.2f})"
+            if suggested_w is not None
+            else f"Next hold ~{best_h:.0f}s (coverage {score_at_best:.2f})"
+        ),
+    )
+    if suggested_w is not None:
+        ax.scatter(
+            [suggested_w],
+            [best_h],
+            color="red",
+            marker="D",
+            s=100,
+            zorder=6,
+            edgecolors="black",
+            linewidths=1.0,
+        )
+    return best_h, suggested_w
+
+
 def plot_piecewise_power_curve(
     data: FullSessionData,
     output_path: Path | None = None,
     max_sessions_for_fit: int = 30,
+    coverage_cmap: str = "Blues",
+    coverage_band_alpha: float = 0.5,
 ) -> tuple[Figure, Axes]:
     """
     Plot a piecewise power curve with linear (power) and hyperbolic (endurance) segments.
@@ -125,15 +241,20 @@ def plot_piecewise_power_curve(
     The transition point between regimes is automatically determined by optimization,
     constrained to have hold time >= 60s at the transition.
 
+    Behind the scatter, coverage is a smooth wash from 0–300 s (mean of overlapping band scores,
+    then Gaussian smoothing). The suggested hold uses only bands whose midpoint lies in 40–240 s.
+
     Args:
         data: FullSessionData containing weights and max hold times.
         output_path: Optional path to save the generated figure.
         max_sessions_for_fit: Maximum number of recent sessions to use for curve fitting.
+        coverage_cmap: Matplotlib colormap name for coverage bands (e.g. ``Blues``, ``Greens``).
+        coverage_band_alpha: Fixed opacity for each band (0–1).
 
     Returns:
         A tuple containing the matplotlib Figure and Axes objects.
     """
-    alpha = (1 - data.normalised_session_age) * 0.9
+    fc, ec, lw = _session_scatter_face_edge_rgba(data)
 
     fig, ax = create_figure()
     title = f"Piecewise Power Curve ({data.label}) ({data.latest_date.date()})"
@@ -142,18 +263,23 @@ def plot_piecewise_power_curve(
     style_axis(ax, title=title, x_label=x_label, y_label=y_label)
     set_hog_time_axis(ax)
 
-    # Scatter plot with opacity based on recency
+    coverage_scores = draw_hold_time_coverage_bands_on_axes(
+        ax,
+        data,
+        coverage_cmap=coverage_cmap,
+        band_alpha=coverage_band_alpha,
+    )
+
     ax.scatter(
         data.weight,
         data.max_hold,
-        alpha=alpha,  # pyright: ignore[reportArgumentType]
-        c="blue",
         s=80,
-        edgecolors="black",
-        linewidths=0.5,  # pyright: ignore[reportArgumentType]
+        facecolors=fc,
+        edgecolors=ec,
+        linewidths=lw,
+        zorder=3,
     )
 
-    # Filter to recent sessions for curve fitting
     if data.number_of_sessions > max_sessions_for_fit:
         fit_data = data.select_sessions_from_range(
             start_session=data.number_of_sessions - max_sessions_for_fit + 1,
@@ -162,79 +288,43 @@ def plot_piecewise_power_curve(
     else:
         fit_data = data
 
+    active_fit: HyperbolicCurveFit | PiecewiseCurveFit
+
     if fit_data.number_of_sessions < max_sessions_for_fit:
-        # Few sessions: use simple hyperbolic curve only
-        curve_fit = fit_power_curve_with_hyperbolic_decay(
+        active_fit = fit_power_curve_with_hyperbolic_decay(
             fit_data.weight,
             fit_data.max_hold,
             session_age=fit_data.normalised_session_age,
         )
         weights = np.linspace(data.weight.min(), data.weight.max(), 100)
-        hold_fit = curve_fit.predict(weights)
-        ax.plot(weights, hold_fit, color="red", linewidth=2, label="Hyperbolic")
-        ax.legend()
+        hold_fit = active_fit.predict(weights)
+        ax.plot(weights, hold_fit, color="red", linewidth=2, zorder=2)
     else:
         try:
-            piecewise_fit = fit_piecewise_power_curve(
+            active_fit = fit_piecewise_power_curve(
                 fit_data.weight,
                 fit_data.max_hold,
                 session_age=fit_data.normalised_session_age,
             )
 
             weights = np.linspace(data.weight.min(), data.weight.max(), 200)
-            hold_fit = piecewise_fit.predict(weights)
+            hold_fit = active_fit.predict(weights)
+            ax.plot(weights, hold_fit, color="red", linewidth=2, zorder=2)
 
-            linear_mask = weights >= piecewise_fit.transition_weight
-            hyper_mask = weights < piecewise_fit.transition_weight
-
-            ax.plot(
-                weights[hyper_mask],
-                hold_fit[hyper_mask],
-                color="green",
-                linewidth=2.5,
-                label="Endurance (hyperbolic)",
-            )
-
-            ax.plot(
-                weights[linear_mask],
-                hold_fit[linear_mask],
-                color="orange",
-                linewidth=2.5,
-                label="Power (linear)",
-            )
-
-            ax.axvline(
-                x=piecewise_fit.transition_weight,
-                color="gray",
-                linestyle="--",
-                linewidth=1.5,
-                alpha=0.7,
-                label=f"Transition @ {piecewise_fit.transition_weight:.1f} {data.weight_unit}",
-            )
-
-            ax.scatter(
-                [piecewise_fit.transition_weight],
-                [piecewise_fit.transition_hold_time],
-                color="red",
-                marker="D",
-                s=100,
-                zorder=5,
-                edgecolors="black",
-                linewidths=1,
-            )
-
-            ax.legend(loc="upper right")
-
-        except (RuntimeError, ValueError) as e:
-            curve_fit = fit_power_curve_with_hyperbolic_decay(
+        except (RuntimeError, ValueError):
+            active_fit = fit_power_curve_with_hyperbolic_decay(
                 fit_data.weight,
                 fit_data.max_hold,
                 session_age=fit_data.normalised_session_age,
             )
             weights = np.linspace(data.weight.min(), data.weight.max(), 100)
-            hold_fit = curve_fit.predict(weights)
-            ax.plot(weights, hold_fit, color="red", linewidth=2, label=f"Hyperbolic (fallback: {e})")
-            ax.legend()
+            hold_fit = active_fit.predict(weights)
+            ax.plot(weights, hold_fit, color="red", linewidth=2, zorder=2)
+
+    draw_next_session_hold_recommendation_on_axes(ax, data, active_fit, coverage_scores)
+    ax.legend(loc="upper right")
+
+    ax.set_ylim(HOLD_TIME_COVERAGE_DISPLAY_Y_LO, HOLD_TIME_COVERAGE_DISPLAY_Y_HI)
 
     save_figure(fig, output_path)
 
@@ -292,7 +382,7 @@ def plot_inverted_power_curve(
     data: FullSessionData,
     output_path: Path | None = None,
     show_curve_fit: bool = True,
-    max_sessions_for_fit: int = 10
+    max_sessions_for_fit: int = 10,
 ) -> tuple[Figure, Axes]:
     """
     Plot weight against max hold time in an inverted format, optionally overlaying
@@ -309,9 +399,8 @@ def plot_inverted_power_curve(
         A tuple containing the matplotlib Figure and Axes objects.
     """
 
-    alpha = (1 - data.normalised_session_age) * 0.9
+    fc, ec, lw = _session_scatter_face_edge_rgba(data, face_color="royalblue")
 
-    # scatter plot, opacacity relative date
     fig, ax = create_figure()
     title = f"Inverted Power Curve (Weight vs Inverted Max Hold Time) ({data.label}) ({data.latest_date.date()})"
     y_label = f"Weight ({data.weight_unit})"
@@ -321,11 +410,10 @@ def plot_inverted_power_curve(
     ax.scatter(
         data.max_hold,
         data.weight,
-        c="royalblue",
-        alpha=alpha,  # pyright: ignore[reportArgumentType]
         s=80,
-        edgecolors="black",
-        linewidths=0.5,
+        facecolors=fc,
+        edgecolors=ec,
+        linewidths=lw,
     )
 
     if show_curve_fit:

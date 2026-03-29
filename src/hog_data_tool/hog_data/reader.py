@@ -98,16 +98,14 @@ def load_generic_session_csv(path: Path) -> pd.DataFrame:
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Generic session CSV missing columns: {missing}")
-    
+
     df = df[[col.value for col in SessionDataColumn] + ["side", "gripper"]].copy()
     df[SessionDataColumn.DATE_TIME] = pd.to_datetime(df[SessionDataColumn.DATE_TIME])
 
     side_map = {"left": SideEnum.LEFT, "right": SideEnum.RIGHT}
     df["side"] = df["side"].astype(str).str.strip().str.lower().map(side_map)
     if df["side"].isna().any():
-        raise ValueError(
-            "Generic session CSV 'side' column must contain only 'left' or 'right'"
-        )
+        raise ValueError("Generic session CSV 'side' column must contain only 'left' or 'right'")
 
     df["gripper"] = df["gripper"].astype(str).str.strip()
 

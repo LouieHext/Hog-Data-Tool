@@ -203,7 +203,9 @@ class StructuredHogData:
         results = {}
         for name, gripper_data in self.named_data_pairs.items():
             if gripper_data.number_of_sessions < min_sessions:
-                print(f"Skipping {name}: only {gripper_data.number_of_sessions} sessions (< {min_sessions})")
+                print(
+                    f"Skipping {name}: only {gripper_data.number_of_sessions} sessions (< {min_sessions})"
+                )
                 continue
             results[name] = plot_method(
                 gripper_data,

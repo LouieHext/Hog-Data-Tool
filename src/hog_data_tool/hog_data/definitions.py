@@ -28,7 +28,7 @@ class SessionDataColumn(StrEnum):
     DATE_TIME = auto()
     WEIGHT = auto()
     MAX_HOLD = auto()
- 
+
 
 class WeightUnit(StrEnum):
     LBS = auto()
