@@ -358,6 +358,7 @@ def fit_piecewise_power_curve(
 
             if sigma_sorted is not None:
                 # Weight errors by inverse of sigma (lower sigma = higher weight)
+                assert sigma_linear is not None and sigma_hyper is not None
                 linear_weights = 1.0 / sigma_linear
                 hyper_weights = 1.0 / sigma_hyper
                 linear_mse = np.average((y_linear - linear_pred) ** 2, weights=linear_weights)
@@ -372,7 +373,8 @@ def fit_piecewise_power_curve(
             hyper_at_trans = hyperbolic_decay(trans_w, *hyper_params)
             continuity_penalty = (linear_at_trans - hyper_at_trans) ** 2
 
-            return linear_mse + hyper_mse + 0.5 * continuity_penalty
+            total = linear_mse + hyper_mse + 0.5 * np.asarray(continuity_penalty, dtype=float)
+            return float(np.asarray(total, dtype=float).item())
 
         except (RuntimeError, ValueError):
             return np.inf

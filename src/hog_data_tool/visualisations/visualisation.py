@@ -88,8 +88,8 @@ def plot_power_curve(
         data.weight,
         data.max_hold,
         s=80,
-        facecolors=fc,
-        edgecolors=ec,
+        facecolors=fc.tolist(),
+        edgecolors=ec.tolist(),
         linewidths=lw,
     )
 
@@ -274,8 +274,8 @@ def plot_piecewise_power_curve(
         data.weight,
         data.max_hold,
         s=80,
-        facecolors=fc,
-        edgecolors=ec,
+        facecolors=fc.tolist(),
+        edgecolors=ec.tolist(),
         linewidths=lw,
         zorder=3,
     )
@@ -411,8 +411,8 @@ def plot_inverted_power_curve(
         data.max_hold,
         data.weight,
         s=80,
-        facecolors=fc,
-        edgecolors=ec,
+        facecolors=fc.tolist(),
+        edgecolors=ec.tolist(),
         linewidths=lw,
     )
 
